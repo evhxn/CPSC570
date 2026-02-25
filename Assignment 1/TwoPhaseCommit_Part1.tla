@@ -1,212 +1,92 @@
---------------------------- MODULE TwoPhaseCommit_Part1 ---------------------------
-(***************************************************************************)
-(* Two-Phase Commit — Part 1: Concurrency                                  *)
-(* Models the coordinator and participants as concurrent PlusCal processes. *)
-(***************************************************************************)
-
-EXTENDS Integers, Sequences, FiniteSets, TLC
+----------------------------- MODULE TwoPhaseCommit_Part1 -----------------------------
+(*
+  Part 1: Concurrency
+  
+  HOMEWORK: Model the concurrent structure of Two-Phase Commit (2PC).
+  
+  Protocol overview:
+  - Phase 1 (Prepare): Coordinator sends PREPARE to all participants.
+      Each participant votes YES or NO.
+  - Phase 2 (Decide): Coordinator collects votes.
+      If ALL voted YES -> COMMIT. Otherwise -> ABORT.
+      Participants receive the decision and update their state.
+  
+  YOUR TASK:
+  1. Complete the Coordinator process:
+     - SendPrepare: transition coordPhase from "idle" to "waiting"
+     - Decide: wait until all participants have voted, then commit or abort
+     - Finish: wait until all participants received the decision, then set "done"
+  
+  2. Complete the Participant process:
+     - Vote: when the coordinator is waiting, nondeterministically vote "yes" or "no"
+     - ReceiveDecision: receive commit (if voted yes and coordinator committed)
+       or abort (if coordinator aborted)
+  
+  HINTS:
+  - Use `when` to block until a condition holds
+  - Use `with v \in {"yes", "no"} do ... end with` for nondeterministic choice
+  - Use `either ... or ... end either` for branching on the decision
+  - The helpers AllVoted, AllYes, AllDecided are provided for you
+*)
+EXTENDS Integers
 
 CONSTANT NumParticipants
 
+ASSUME NumParticipants \in 2..5
+
+Coord == 0
 Participants == 1..NumParticipants
 
-(***************************************************************************)
-(* --algorithm TwoPhaseCommit {
+(*--algorithm TwoPhaseCommit
 
-    variables
-        coordPhase   = "init",        \* coordinator phase: "init", "waiting", "decided"
-        coordDecision = "none",       \* coordinator decision: "none", "commit", "abort"
-        partPhase    = [p \in Participants |-> "init"],
-                                       \* participant phase: "init", "voting", "decided"
-        partVote     = [p \in Participants |-> "none"],
-                                       \* participant vote: "none", "yes", "no"
-        partDecision = [p \in Participants |-> "none"],
-                                       \* participant outcome: "none", "committed", "aborted"
-        coordMsg     = "none",        \* message from coordinator: "none", "prepare", "commit", "abort"
-        partVoteCount = 0,            \* how many votes the coordinator has received
-        partAckCount  = 0;            \* how many acks the coordinator has received
+variables
+    (* coordPhase: "idle" -> "waiting" -> "committed"/"aborted" -> "done" *)
+    coordPhase = "idle",
+    (* partPhase: "idle" -> "voted" -> "committed"/"aborted" *)
+    partPhase = [p \in Participants |-> "idle"],
+    (* partVote: "none" -> "yes"/"no" *)
+    partVote = [p \in Participants |-> "none"];
 
-    \* ---------------------------------------------------------------
-    \* Helper definitions (define block)
-    \* ---------------------------------------------------------------
-    define {
-        AllVoted    == \A p \in Participants : partVote[p] /= "none"
-        AllYes      == \A p \in Participants : partVote[p] = "yes"
-        AllDecided  == \A p \in Participants : partPhase[p] = "decided"
-    }
+define
+    AllVoted == \A p \in Participants: partPhase[p] # "idle"
+    AllYes == \A p \in Participants: partVote[p] = "yes"
+    AllDecided == \A p \in Participants: partPhase[p] \in {"committed", "aborted"}
+end define;
 
-    \* ---------------------------------------------------------------
-    \* Coordinator process
-    \* ---------------------------------------------------------------
-    fair process (Coordinator = 0)
-    {
-        C_SendPrepare:
-            \* Phase 1: Coordinator sends PREPARE to all participants
-            coordMsg   := "prepare";
-            coordPhase := "waiting";
+fair process Coordinator = Coord
+begin
+    SendPrepare:
+        when coordPhase = "idle";
+        coordPhase := "waiting";
+    Decide:
+        when coordPhase = "waiting" /\ AllVoted;
+        if AllYes then
+            coordPhase := "committed";
+        else
+            coordPhase := "aborted";
+        end if;
+    Finish:
+        when coordPhase \in {"committed", "aborted"} /\ AllDecided;
+        coordPhase := "done";
+end process;
 
-        C_CollectVotes:
-            \* Wait until all participants have voted
-            when AllVoted;
-            \* Decide based on votes
-            if (AllYes) {
-                coordDecision := "commit";
-            } else {
-                coordDecision := "abort";
-            };
+fair process Participant \in Participants
+begin
+    Vote:
+        when partPhase[self] = "idle" /\ coordPhase = "waiting";
+        with v \in {"yes", "no"} do
+            partVote[self] := v;
+            partPhase[self] := "voted";
+        end with;
+    ReceiveDecision:
+        either
+            when partVote[self] = "yes" /\ coordPhase = "committed";
+            partPhase[self] := "committed";
+        or
+            when coordPhase = "aborted";
+            partPhase[self] := "aborted";
+        end either;
+end process;
 
-        C_SendDecision:
-            \* Phase 2: Broadcast the decision
-            if (coordDecision = "commit") {
-                coordMsg := "commit";
-            } else {
-                coordMsg := "abort";
-            };
-            coordPhase := "decided";
-
-        C_WaitAcks:
-            \* Wait for all participants to finish
-            when AllDecided;
-    }
-
-    \* ---------------------------------------------------------------
-    \* Participant processes
-    \* ---------------------------------------------------------------
-    fair process (Participant \in Participants)
-    {
-        P_WaitPrepare:
-            \* Wait for the coordinator to send PREPARE
-            when coordMsg = "prepare";
-            partPhase[self] := "voting";
-
-        P_Vote:
-            \* Nondeterministically vote YES or NO
-            either {
-                partVote[self] := "yes";
-            } or {
-                partVote[self] := "no";
-            };
-
-        P_WaitDecision:
-            \* Wait for the coordinator to broadcast commit or abort
-            when coordPhase = "decided";
-
-        P_ApplyDecision:
-            \* Apply the coordinator's decision
-            if (coordDecision = "commit") {
-                partDecision[self] := "committed";
-            } else {
-                partDecision[self] := "aborted";
-            };
-            partPhase[self] := "decided";
-    }
-}
-*)
-
-\* BEGIN TRANSLATION (generated by TLA+ transpiler — paste translated output here)
-\* The following is the TLA+ translation of the PlusCal algorithm above.
-
-VARIABLES coordPhase, coordDecision, partPhase, partVote, partDecision,
-          coordMsg, partVoteCount, partAckCount, pc
-
-vars == << coordPhase, coordDecision, partPhase, partVote, partDecision,
-           coordMsg, partVoteCount, partAckCount, pc >>
-
-ProcSet == {0} \cup (Participants)
-
-Init == (* Global variables *)
-        /\ coordPhase = "init"
-        /\ coordDecision = "none"
-        /\ partPhase = [p \in Participants |-> "init"]
-        /\ partVote = [p \in Participants |-> "none"]
-        /\ partDecision = [p \in Participants |-> "none"]
-        /\ coordMsg = "none"
-        /\ partVoteCount = 0
-        /\ partAckCount = 0
-        /\ pc = [self \in ProcSet |-> CASE self = 0 -> "C_SendPrepare"
-                                        [] self \in Participants -> "P_WaitPrepare"]
-
-(* define block *)
-AllVoted    == \A p \in Participants : partVote[p] /= "none"
-AllYes      == \A p \in Participants : partVote[p] = "yes"
-AllDecided  == \A p \in Participants : partPhase[p] = "decided"
-
-\* Coordinator actions
-C_SendPrepare == /\ pc[0] = "C_SendPrepare"
-                 /\ coordMsg'   = "prepare"
-                 /\ coordPhase' = "waiting"
-                 /\ pc' = [pc EXCEPT ![0] = "C_CollectVotes"]
-                 /\ UNCHANGED << coordDecision, partPhase, partVote,
-                                  partDecision, partVoteCount, partAckCount >>
-
-C_CollectVotes == /\ pc[0] = "C_CollectVotes"
-                  /\ AllVoted
-                  /\ IF AllYes
-                     THEN /\ coordDecision' = "commit"
-                     ELSE /\ coordDecision' = "abort"
-                  /\ pc' = [pc EXCEPT ![0] = "C_SendDecision"]
-                  /\ UNCHANGED << coordPhase, partPhase, partVote,
-                                   partDecision, coordMsg, partVoteCount, partAckCount >>
-
-C_SendDecision == /\ pc[0] = "C_SendDecision"
-                  /\ IF coordDecision = "commit"
-                     THEN /\ coordMsg' = "commit"
-                     ELSE /\ coordMsg' = "abort"
-                  /\ coordPhase' = "decided"
-                  /\ pc' = [pc EXCEPT ![0] = "C_WaitAcks"]
-                  /\ UNCHANGED << coordDecision, partPhase, partVote,
-                                   partDecision, partVoteCount, partAckCount >>
-
-C_WaitAcks == /\ pc[0] = "C_WaitAcks"
-              /\ AllDecided
-              /\ pc' = [pc EXCEPT ![0] = "Done"]
-              /\ UNCHANGED << coordPhase, coordDecision, partPhase, partVote,
-                               partDecision, coordMsg, partVoteCount, partAckCount >>
-
-Coordinator == C_SendPrepare \/ C_CollectVotes \/ C_SendDecision \/ C_WaitAcks
-
-\* Participant actions
-P_WaitPrepare(self) == /\ pc[self] = "P_WaitPrepare"
-                       /\ coordMsg = "prepare"
-                       /\ partPhase' = [partPhase EXCEPT ![self] = "voting"]
-                       /\ pc' = [pc EXCEPT ![self] = "P_Vote"]
-                       /\ UNCHANGED << coordPhase, coordDecision, partVote,
-                                        partDecision, coordMsg, partVoteCount, partAckCount >>
-
-P_Vote(self) == /\ pc[self] = "P_Vote"
-                /\ \/ /\ partVote' = [partVote EXCEPT ![self] = "yes"]
-                   \/ /\ partVote' = [partVote EXCEPT ![self] = "no"]
-                /\ pc' = [pc EXCEPT ![self] = "P_WaitDecision"]
-                /\ UNCHANGED << coordPhase, coordDecision, partPhase,
-                                 partDecision, coordMsg, partVoteCount, partAckCount >>
-
-P_WaitDecision(self) == /\ pc[self] = "P_WaitDecision"
-                        /\ coordPhase = "decided"
-                        /\ pc' = [pc EXCEPT ![self] = "P_ApplyDecision"]
-                        /\ UNCHANGED << coordPhase, coordDecision, partPhase, partVote,
-                                         partDecision, coordMsg, partVoteCount, partAckCount >>
-
-P_ApplyDecision(self) == /\ pc[self] = "P_ApplyDecision"
-                         /\ IF coordDecision = "commit"
-                            THEN /\ partDecision' = [partDecision EXCEPT ![self] = "committed"]
-                            ELSE /\ partDecision' = [partDecision EXCEPT ![self] = "aborted"]
-                         /\ partPhase' = [partPhase EXCEPT ![self] = "decided"]
-                         /\ pc' = [pc EXCEPT ![self] = "Done"]
-                         /\ UNCHANGED << coordPhase, coordDecision, partVote,
-                                          coordMsg, partVoteCount, partAckCount >>
-
-Participant(self) == \/ P_WaitPrepare(self)
-                     \/ P_Vote(self)
-                     \/ P_WaitDecision(self)
-                     \/ P_ApplyDecision(self)
-
-\* Next-state relation
-Next == \/ Coordinator
-        \/ (\E self \in Participants : Participant(self))
-        \/ ((\A self \in ProcSet : pc[self] = "Done") /\ UNCHANGED vars)
-
-Spec == Init /\ [][Next]_vars
-
-Termination == <>(\A self \in ProcSet : pc[self] = "Done")
-
+end algorithm;*)
 =============================================================================

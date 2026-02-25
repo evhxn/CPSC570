@@ -3,44 +3,33 @@
 ## How to Run
 
 ### Prerequisites
-- Java 16+ installed
-- Download `tla2tools.jar` from https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar
+- Java 16+
+- Download [tla2tools.jar](https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar)
 
-### Command Line
+### Important: Translate PlusCal First
 
-Place `tla2tools.jar` in the same directory as the `.tla` and `.cfg` files, then run:
+Part 1 contains PlusCal that must be translated to TLA+ before TLC can run. Parts 2 and 3 extend Part 1 via `EXTENDS`, so only Part 1 needs translation.
 
 ```bash
-# Part 1: Concurrency
+java -cp tla2tools.jar pcal.trans TwoPhaseCommit_Part1.tla
+```
+
+Or in VSCode: open `TwoPhaseCommit_Part1.tla` and press `Ctrl+T` (`Cmd+T` on Mac).
+
+### Running TLC
+
+```bash
+# Part 1: Concurrency (basic model checking)
 java -jar tla2tools.jar -config TwoPhaseCommit_Part1.cfg TwoPhaseCommit_Part1
 
-# Part 2: Liveness (with fairness — LTermination should pass)
+# Part 2: Liveness (fairness + termination)
 java -jar tla2tools.jar -config TwoPhaseCommit_Part2.cfg TwoPhaseCommit_Part2
 
-# Part 3: Safety (invariants + liveness — all should pass)
+# Part 3: Safety (invariants + liveness)
 java -jar tla2tools.jar -config TwoPhaseCommit_Part3.cfg TwoPhaseCommit_Part3
 ```
 
-### VSCode (TLA+ Extension)
-
-1. Install the **TLA+** extension by Markus Kuppe from the Extensions marketplace
-2. Open any `.tla` file
-3. Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac) → **"TLA+: Check model with TLC"**
-4. TLC will use the matching `.cfg` file automatically
-
-### TLA+ Toolbox (GUI)
-
-1. File → Open Spec → select `TwoPhaseCommit_Part3.tla`
-2. TLC Model Checker → New Model
-3. Set constant: `NumParticipants = 3`
-4. Behavior spec: `LSpec`
-5. Invariants: `Invariants`
-6. Properties: `LTermination`
-7. Click Run
-
-### Expected Results
-
-All three parts should produce:
+### Expected Output (all three parts)
 
 ```
 Model checking completed. No error has been found.
@@ -54,8 +43,8 @@ The depth of the complete state graph search is 17.
 |------|-------------|
 | `TwoPhaseCommit_Part1.tla` | Concurrency — coordinator and participants as concurrent PlusCal processes |
 | `TwoPhaseCommit_Part1.cfg` | TLC config for Part 1 (`Spec`, NumParticipants = 3) |
-| `TwoPhaseCommit_Part2.tla` | Liveness — adds fairness (WF) and termination property |
+| `TwoPhaseCommit_Part2.tla` | Liveness — extends Part 1 with fairness (WF) and termination |
 | `TwoPhaseCommit_Part2.cfg` | TLC config for Part 2 (`LSpec` + `LTermination`) |
-| `TwoPhaseCommit_Part3.tla` | Safety — adds TypeInvariant, Atomicity, CoordinatorParticipantsAgree |
+| `TwoPhaseCommit_Part3.tla` | Safety — extends Part 2 with TypeInvariant, Atomicity, CoordinatorParticipantsAgree |
 | `TwoPhaseCommit_Part3.cfg` | TLC config for Part 3 (`LSpec` + `Invariants` + `LTermination`) |
 | `writeup.md` | Observations from running TLC on each part |
