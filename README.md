@@ -27,7 +27,7 @@ This repository contains coursework for CPSC 570, a course exploring formal meth
 
 ### Prerequisites
 
-- Java 16+
+- Java 16+ 
 - [tla2tools.jar](https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar) (TLC model checker)
 
 ### Running an Assignment
