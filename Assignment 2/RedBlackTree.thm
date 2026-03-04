@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<alloy>
+  <view>
+    <!-- Hide the Color signature atoms since we show color via node styling -->
+    <type name="Color">
+      <set name="$Red" label="Red" color="Red"/>
+      <set name="$Black" label="Black" color="Black"/>
+    </type>
+
+    <!-- Project over uninteresting sigs -->
+    <projection> </projection>
+
+    <!-- Node styling -->
+    <node>
+      <!-- Root: large black hexagon -->
+      <type name="Root"       color="Black"  shape="Hexagon"   style="Bold"  label="Root"/>
+      <!-- Internal nodes: boxes -->
+      <type name="Internal"   color="Gray"   shape="Box"       style="Bold"/>
+      <!-- NIL leaves: small dark triangles -->
+      <type name="NIL"        color="Black"  shape="Triangle"  style="Dotted" label="NIL"/>
+      <!-- Color sigs: hide from graph -->
+      <type name="Color"      visible="no"/>
+      <type name="Red"        visible="no"/>
+      <type name="Black"      visible="no"/>
+    </node>
+
+    <!-- Edge styling -->
+    <edge>
+      <relation name="left"   color="Blue"   style="Solid"  label="L"/>
+      <relation name="right"  color="Red"    style="Solid"  label="R"/>
+      <relation name="color"  visible="no"/>
+    </edge>
+  </view>
+</alloy>
