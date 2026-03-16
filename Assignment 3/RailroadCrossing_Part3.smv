@@ -1,0 +1,128 @@
+-- Railroad Crossing Controller — Part 3: CTL and Fairness
+--
+-- HOMEWORK: Write CTL specifications and explore fairness constraints.
+--
+-- The model from Parts 1–2 is below (with the TODOs you need to complete first).
+--
+-- CTL QUICK REFERENCE:
+--   AG p      — on all paths, p holds in every state (safety)
+--   AF p      — on all paths, p holds eventually (liveness)
+--   EF p      — on some path, p holds eventually (reachability)
+--   EG p      — on some path, p holds in every state (possibility)
+--   AX p      — in all successor states, p holds
+--   EX p      — in some successor state, p holds
+--   A[p U q]  — on all paths, p holds until q (strong until)
+--   E[p U q]  — on some path, p holds until q
+--
+-- FAIRNESS:
+--   FAIRNESS p  — only consider traces where p holds infinitely often.
+--   Without fairness, nuXmv considers ALL traces, including ones where
+--   the train stays absent forever. These "degenerate" traces can cause
+--   liveness properties to fail vacuously.
+--
+-- YOUR TASK:
+-- 1. Write SPEC formulas for CTL properties 1–5 below.
+-- 2. Run WITHOUT the FAIRNESS constraint. Note which properties fail.
+-- 3. Uncomment the FAIRNESS constraint and re-run. Note the change.
+-- 4. In your writeup, explain: why does fairness matter here?
+--    (Compare with the lecture demo where FAIRNESS turn = 1 fixed starvation.)
+--
+-- CTL PROPERTIES TO VERIFY:
+--
+-- 1. SAFETY: "The gate is always down when a train is crossing."
+--    (Hint: this is exactly AG safe)
+--
+-- 2. REACHABILITY: "It is possible for a train to be crossing
+--    while the gate is down."
+--    (Hint: use EF with a conjunction)
+--
+-- 3. RECOVERY: "From any reachable state, the gate can eventually
+--    return to the up position."
+--    (Hint: combine AG with EF)
+--
+-- 4. RESPONSE: "Whenever the train is approaching, the gate will
+--    eventually be down (on all paths from that state)."
+--    (Hint: AG with implication and AF)
+--
+-- 5. GATE PROGRESS: "If the gate starts lowering, it will always
+--    be fully down in the very next state."
+--    (Hint: AG with implication and AX)
+--
+-- BONUS: Does this hold?
+--    "A train always eventually crosses."  (AG AF train = crossing)
+--    >>> This should FAIL without fairness. Why? <<<
+
+MODULE main
+
+VAR
+  train : {absent, approaching, near, crossing, leaving};
+  gate  : {up, lowering, down, raising};
+
+ASSIGN
+  init(train) := absent;
+  next(train) := case
+    train = absent      : {absent, approaching};
+    train = approaching : near;
+    train = near        : crossing;
+    train = crossing    : leaving;
+    train = leaving     : absent;
+  esac;
+
+  -- Gate: starts in the up position (given)
+  init(gate) := up;
+
+  -- Gate transitions (completed — same as Part 1)
+  next(gate) := case
+    gate = up      & train = approaching : lowering;
+    gate = lowering                      : down;
+    gate = down    & train = leaving     : raising;
+    gate = raising                       : up;
+    TRUE                                 : gate;
+  esac;
+
+DEFINE
+  -- safe: if the train is crossing, the gate must be down
+  safe := (train = crossing -> gate = down);
+
+  -- train_present: the train is somewhere other than absent
+  train_present := (train != absent);
+
+-- =====================================================
+-- FAIRNESS constraint
+-- Uncomment AFTER your first run to see which properties change.
+-- It requires the train to approach infinitely often, ruling out
+-- traces where the train stays absent forever.
+-- =====================================================
+
+FAIRNESS (train = approaching)
+
+-- =====================================================
+-- LTL specs from Part 2 (for reference/comparison)
+-- =====================================================
+LTLSPEC G (train = crossing -> gate = down)
+LTLSPEC G (train = approaching -> F (gate = down))
+LTLSPEC G (gate = lowering -> X (gate = down))
+
+-- =====================================================
+-- CTL Specifications
+-- =====================================================
+
+-- 1. Safety: "The gate is always down when a train is crossing."
+SPEC AG safe
+
+-- 2. Reachability: "It is possible for a train to be crossing while the gate is down."
+SPEC EF (train = crossing & gate = down)
+
+-- 3. Recovery: "From any reachable state, the gate can eventually return to the up position."
+SPEC AG (EF (gate = up))
+
+-- 4. Response: "Whenever the train is approaching, the gate will eventually be down."
+SPEC AG (train = approaching -> AF (gate = down))
+
+-- 5. Gate progress: "If the gate starts lowering, it will always be fully down in the very next state."
+SPEC AG (gate = lowering -> AX (gate = down))
+
+-- BONUS: "A train always eventually crosses."
+-- Fails without fairness (train can stay absent forever).
+-- Passes with fairness.
+SPEC AG (AF (train = crossing))
