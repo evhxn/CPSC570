@@ -11,8 +11,8 @@ This repository contains coursework for CPSC 570, a course exploring formal meth
 | # | Topic | Tools | Description |
 |---|-------|-------|-------------|
 | 1 | [Two-Phase Commit](Assignment1/) | TLA+ / PlusCal, TLC | Model and verify the 2PC distributed transaction protocol — concurrency, liveness (fairness & termination), and safety (atomicity invariants) |
-
-> More assignments will be added as the course progresses.
+| 2 | [Red-Black Trees](Assignment2/) | Alloy Analyzer | Specify red-black tree invariants (coloring, black-height) and generate valid instances using constraint-based model finding |
+| 3 | [LTL & Railroad Crossing](Assignment3/) | nuXmv, pen & paper | Prove LTL semantics, analyze transition systems, and model a railroad crossing controller with LTL/CTL verification and fairness |
 
 ---
 
@@ -20,6 +20,8 @@ This repository contains coursework for CPSC 570, a course exploring formal meth
 
 - **TLA+ / PlusCal** — Formal specification language for modeling concurrent and distributed systems
 - **TLC Model Checker** — Exhaustive state-space exploration to verify temporal and safety properties
+- **Alloy Analyzer** — Constraint-based model finder for relational specifications
+- **nuXmv** — Symbolic model checker for CTL and LTL verification of finite-state systems
 
 ---
 
@@ -27,18 +29,26 @@ This repository contains coursework for CPSC 570, a course exploring formal meth
 
 ### Prerequisites
 
-- Java 16+ 
+- Java 16+
 - [tla2tools.jar](https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar) (TLC model checker)
+- [Alloy Analyzer](https://github.com/AlloyTools/org.alloytools.alloy/releases) (v6.x)
+- [nuXmv](https://nuxmv.fbk.eu/download.html) (requires `gmp` library — install via `brew install gmp` on macOS)
 
 ### Running an Assignment
 
-Each assignment directory contains `.tla` spec files and `.cfg` config files. To verify:
+Each assignment directory contains its own README with specific instructions. Quick reference:
 
 ```bash
-java -jar tla2tools.jar -config <ConfigFile>.cfg <ModuleName>
-```
+# TLA+ (Assignment 1)
+java -cp tla2tools.jar pcal.trans <Module>.tla
+java -jar tla2tools.jar -config <Config>.cfg <Module>
 
-See individual assignment READMEs for specific instructions.
+# Alloy (Assignment 2)
+# Open .als file in Alloy Analyzer → Execute → Show
+
+# nuXmv (Assignment 3)
+nuXmv <Model>.smv
+```
 
 ---
 
