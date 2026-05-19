@@ -1,0 +1,11 @@
+// PRISM properties for the robot navigation MDP
+// CPSC 570 - From Bugs to Proofs
+
+// Part 2: Maximum probability of reaching goal1 from the initial state
+Pmax=? [ F "goal1" ]
+
+// Part 3: Maximum probability of reaching goal2 within k steps
+//         without ever passing through the hazard state
+const int k;
+
+Pmax=? [ !"hazard" U<=k "goal2" ]
